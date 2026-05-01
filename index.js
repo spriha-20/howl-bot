@@ -4,7 +4,7 @@ const cron = require('node-cron');
 const express = require('express');
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const RENDER_URL = 'https://howl-bot-2yxp.onrender.com';
 
 console.log('TELEGRAM_TOKEN present:', !!TELEGRAM_TOKEN);
