@@ -5,7 +5,7 @@ const express = require('express');
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const RENDER_URL = process.env.RENDER_URL || 'https://howl-bot-2yxp.onrender.com';
+const RENDER_URL = 'https://howl-bot-2yxp.onrender.com';
 
 console.log('TELEGRAM_TOKEN present:', !!TELEGRAM_TOKEN);
 console.log('GEMINI_API_KEY present:', !!GEMINI_API_KEY);
@@ -13,18 +13,25 @@ console.log('GEMINI_API_KEY present:', !!GEMINI_API_KEY);
 const app = express();
 app.use(express.json());
 
-// Use webhook instead of polling to avoid 409 conflicts
-const bot = new TelegramBot(TELEGRAM_TOKEN, { webHook: true });
-bot.setWebHook(`${RENDER_URL}/bot${TELEGRAM_TOKEN}`);
+const bot = new TelegramBot(TELEGRAM_TOKEN, { webHook: false });
 
-app.post(`/bot${TELEGRAM_TOKEN}`, (req, res) => {
+// Single fixed webhook path - no token in URL
+app.post('/webhook', (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
 
 app.get('/', (req, res) => res.send('Howl is moving. The castle is alive.'));
-app.listen(process.env.PORT || 3000, () => {
-  console.log('Express server running');
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, async () => {
+  console.log('Express server running on port', PORT);
+  try {
+    await bot.setWebHook(`${RENDER_URL}/webhook`);
+    console.log('Webhook set to:', `${RENDER_URL}/webhook`);
+  } catch (err) {
+    console.error('Webhook setup error:', err.message);
+  }
 });
 
 const state = {
@@ -261,7 +268,6 @@ bot.on('message', async (msg) => {
   }
 });
 
-// 1:30 PM IST = 08:00 UTC
 cron.schedule('0 8 * * *', () => {
   console.log('Sending afternoon check-in...');
   sendDailyCheckin();
