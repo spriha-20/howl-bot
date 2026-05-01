@@ -5,16 +5,27 @@ const express = require('express');
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const RENDER_URL = process.env.RENDER_URL || 'https://howl-bot-2yxp.onrender.com';
 
 console.log('TELEGRAM_TOKEN present:', !!TELEGRAM_TOKEN);
 console.log('GEMINI_API_KEY present:', !!GEMINI_API_KEY);
 
-const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-
 const app = express();
+app.use(express.json());
+
+// Use webhook instead of polling to avoid 409 conflicts
+const bot = new TelegramBot(TELEGRAM_TOKEN, { webHook: true });
+bot.setWebHook(`${RENDER_URL}/bot${TELEGRAM_TOKEN}`);
+
+app.post(`/bot${TELEGRAM_TOKEN}`, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
 app.get('/', (req, res) => res.send('Howl is moving. The castle is alive.'));
-app.listen(process.env.PORT || 3000);
+app.listen(process.env.PORT || 3000, () => {
+  console.log('Express server running');
+});
 
 const state = {
   chatId: null,
@@ -62,13 +73,14 @@ YOUR PERSONALITY:
 
 SPRIHA'S THREE CHARTERS:
 1. Grow & Build: AI automation, UX portfolio, content design audit, boss's findings doc
-2. Create & Express: Novel, Figma zine, handmade diary, handwriting practice  
+2. Create & Express: Novel, Figma zine, handmade diary, handwriting practice
 3. Slow & Nourish: Crochet, sewing machine, reading Ginza Stationery Shop
 
 Always end with a question or a choice, never a lecture.`;
 
 async function askHowl(userMessage, extraContext) {
   try {
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const prompt = `${HOWL_SYSTEM}\n\n${extraContext || ''}\n\nSpriha says: "${userMessage}"\n\nRespond as Howl in under 120 words.`;
     const result = await model.generateContent(prompt);
@@ -134,9 +146,8 @@ bot.on('message', async (msg) => {
   if (!state.chatId) state.chatId = chatId;
 
   try {
-
     if (text === '/start') {
-      const intro = await askHowl('(first meeting)', 'Introduce yourself as her productivity companion. Mention the 3 charters. Tell her you check in at 1:30pm daily. Be dramatic and charming.');
+      const intro = await askHowl('(first meeting)', 'Introduce yourself as her productivity companion. Mention the 3 charters briefly. Tell her you check in at 1:30pm daily. Be dramatic and charming. Under 150 words.');
       await bot.sendMessage(chatId, intro, {
         reply_markup: {
           keyboard: [
@@ -233,7 +244,7 @@ bot.on('message', async (msg) => {
     if (text === '📊 My progress') {
       const balance = getCharterBalance();
       const total = state.history.length;
-      const context = `Progress report: Total tasks chosen: ${total}. Last 7 days — Grow: ${balance.grow}, Create: ${balance.create}, Nourish: ${balance.nourish}. Give a Howl-style dramatic progress report with a gentle nudge toward the neglected charter.`;
+      const context = `Progress: Total tasks chosen: ${total}. Last 7 days — Grow: ${balance.grow}, Create: ${balance.create}, Nourish: ${balance.nourish}. Give a dramatic Howl-style progress report with a nudge toward the neglected charter.`;
       const response = await askHowl('Show me my progress', context);
       await bot.sendMessage(chatId, response);
       return;
@@ -246,11 +257,11 @@ bot.on('message', async (msg) => {
 
   } catch (err) {
     console.error('Handler error:', err.message);
-    console.error('Stack:', err.stack);
     await bot.sendMessage(chatId, `How tiresome. The spirits are uncooperative: ${err.message}`);
   }
 });
 
+// 1:30 PM IST = 08:00 UTC
 cron.schedule('0 8 * * *', () => {
   console.log('Sending afternoon check-in...');
   sendDailyCheckin();
