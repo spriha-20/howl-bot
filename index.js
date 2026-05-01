@@ -84,7 +84,7 @@ async function askHowl(userMessage, extraContext) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'llama3-8b-8192',
+      model: 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: HOWL_SYSTEM + (extraContext ? '\n\n' + extraContext : '') },
         { role: 'user', content: userMessage },
