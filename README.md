@@ -1,4 +1,4 @@
-# 🏰 Howl's Bot — Deployment Guide
+# 🏰 Howl's Bot Deployment Guide
 
 A personal productivity companion on Telegram, voiced by Howl Jenkins Pendragon from Howl's Moving Castle.
 
